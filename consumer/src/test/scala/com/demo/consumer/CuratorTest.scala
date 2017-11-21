@@ -1,4 +1,4 @@
-package com.demo
+package com.demo.consumer
 
 import org.apache.log4j.Logger
 import org.scalatest.{BeforeAndAfter, FunSpec, Matchers}

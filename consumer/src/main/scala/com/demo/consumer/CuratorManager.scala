@@ -1,4 +1,4 @@
-package com.demo
+package com.demo.consumer
 
 import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
