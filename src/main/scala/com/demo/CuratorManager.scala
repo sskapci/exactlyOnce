@@ -1,18 +1,13 @@
 package com.demo
 
-import org.apache.curator.framework.CuratorFrameworkFactory
+import org.apache.curator.framework.{CuratorFramework, CuratorFrameworkFactory}
 import org.apache.curator.retry.ExponentialBackoffRetry
-import org.apache.curator.framework.CuratorFramework
+import org.apache.log4j.Logger
 
 import scala.collection.JavaConversions._
 
-import org.apache.log4j.Logger
-
-class CuratorManager {
+class CuratorManager extends serializable{
   private val logger = Logger.getLogger(getClass)
-
-  import org.apache.curator.framework.CuratorFramework
-  import org.apache.curator.framework.CuratorFrameworkFactory
 
   def createSimple(connectionString: String): CuratorFramework = {
     // these are reasonable arguments for the ExponentialBackoffRetry. The first
@@ -40,20 +35,12 @@ class CuratorManager {
     client.getChildren.forPath(path).toList
   }
 
-  def delete(cs: String, path: String): Unit = {
-    CuratorFrameworkSingleton.getInstance(cs).delete.forPath(path)
+  def delete(client: CuratorFramework, path: String): Unit = {
+    client.delete.forPath(path)
   }
 
-  object CuratorFrameworkSingleton {
-    @transient private var instance: CuratorFramework = _
+  def checkExists(client: CuratorFramework, path: String):Boolean={
 
-    def getInstance(connectionString: String): CuratorFramework = {
-      if (instance == null) {
-        val retryPolicy = new ExponentialBackoffRetry(1000, 3)
-        instance = CuratorFrameworkFactory.newClient(connectionString, retryPolicy)
-      }
-      instance
-    }
   }
 
 }

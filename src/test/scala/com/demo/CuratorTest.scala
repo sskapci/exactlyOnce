@@ -22,6 +22,7 @@ class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
     val curatorManager = new CuratorManager()
     val curatorClient = curatorManager.createSimple(zkServer.getConnectString)
     curatorClient.start()
+
     curatorManager.create(curatorClient, "/test", "test123")
     val listOfZnode = curatorManager.getListChildren(curatorClient, "/")
     for(x<- listOfZnode){
@@ -31,7 +32,7 @@ class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
     val data = curatorManager.readData(curatorClient, "/test")
     logger.info(data)
 
-
+    curatorManager.delete(curatorClient,"/test")
     curatorClient.close()
   }
 
