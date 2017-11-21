@@ -8,6 +8,7 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
+import scopt.OptionParser
 
 import scala.collection.mutable
 
@@ -19,7 +20,7 @@ object Application {
 
   case class StartArgs(broker: String = null, topics: String = null, zookeeper: String = null)
 
-  val parser = new scopt.OptionParser[StartArgs]("startArgs") {
+  val parser: OptionParser[StartArgs] = new scopt.OptionParser[StartArgs]("startArgs") {
     head("exactly once approach", "1.0")
     opt[String]('b', "broker")
       .required()
@@ -36,21 +37,21 @@ object Application {
       .text("Zookeeper Topic")
   }
 
-  def main(args: Array[String]) = parser.parse(args, StartArgs()) match {
+  //TODO add partitions too
+  def main(args: Array[String]): Unit = parser.parse(args, StartArgs()) match {
     case None => parser.failure("Failed parsing arguments")
 
     case Some(confForArgs) => {
 
       val configuration = new SparkConf(true)
-      configuration.setAppName(getClass().getSimpleName())
+      configuration.setAppName(getClass.getSimpleName)
 
       val ssc = new StreamingContext(configuration, Seconds(2))
 
       val topicsList: List[String] = confForArgs.topics.split(",").toList
+      checkAndPrepareZnodes(confForArgs.zookeeper, topicsList)
 
-      var topicsMutableMap: mutable.Map[TopicAndPartition, Long] = mutable.Map()
-      topicsMutableMap += TopicAndPartition("test1", 0) -> 0
-      val fromOffsets: Map[TopicAndPartition, Long] = topicsMutableMap.toMap
+      val fromOffsets: Map[TopicAndPartition, Long] = readTopicValues(confForArgs.zookeeper, topicsList)
 
       val kafkaSettingsMap = Map[String, String]("bootstrap.servers" -> confForArgs.broker,
         "key.serializer" -> "org.apache.kafka.common.serialization.StringSerializer",
@@ -98,6 +99,36 @@ object Application {
 
       sys.exit(0)
     }
+
+      //this is for checking and creating zNodes for the topics
+      //partitons hasn't implemented yet
+      def checkAndPrepareZnodes(connectionString: String, topics: List[String]): Unit = {
+        val cm = new CuratorManager
+        val cl = cm.createSimple(connectionString)
+        cl.start()
+        topics.foreach(f => {
+          if (!cm.checkExists(cl, "/" + f)) {
+            cm.create(cl, "/" + f, "0")
+          }
+        })
+        cl.close()
+      }
+
+      //partitons hasn't implemented yet
+      def readTopicValues(connectionString: String, topics: List[String]): Map[TopicAndPartition, Long] = {
+        var topicsMutableMap: mutable.Map[TopicAndPartition, Long] = mutable.Map()
+
+        val cm = new CuratorManager
+        val cl = cm.createSimple(connectionString)
+        cl.start()
+        topics.foreach(f => {
+          val data = cm.readData(cl, "/" + f)
+          topicsMutableMap += TopicAndPartition("test1", 0) -> data.asInstanceOf[Long]
+        })
+        cl.close()
+
+        topicsMutableMap.toMap
+      }
   }
 
   object SQLContextSingleton {

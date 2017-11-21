@@ -4,10 +4,10 @@ import java.util.Random;
 
 public class Producer {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
 
         //arg 0 broker
-        //arg 1 topic
+        //arg 1 topics separated with comma
         //arg 3 count of message count
 
         if (args.length < 3) {
@@ -16,13 +16,16 @@ public class Producer {
         }
 
         String broker=args[0];
-        String topic=args[1];
-        Integer count=Integer.getInteger(args[2]);
+        String[] topics=args[1].split(",");
+        Integer count=Integer.valueOf(args[2]);
 
-        for (int i = 0; i < count; i++) {
-            RandomString gen = new RandomString(8);
-            KafkaSender.SendMessage(broker,topic,gen.nextString());
+        for (String topic:topics) {
+            for (int i = 0; i < count; i++) {
+                KafkaSender.SendMessage(broker,topic,new RandomString(8).nextString());
+            }
         }
+
+
 
 
     }

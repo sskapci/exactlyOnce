@@ -18,9 +18,7 @@ public class KafkaSender {
 
         org.apache.kafka.clients.producer.Producer<String, String> producer = new KafkaProducer<>(props);
 
-        //TODO Continuous stream?
-
-        producer.send(new ProducerRecord<String, String>(topic, data, data));
+        producer.send(new ProducerRecord<>(topic, data, data));
 
         producer.close();
     }

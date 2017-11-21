@@ -25,17 +25,20 @@ class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
 
     curatorManager.create(curatorClient, "/test", "test123")
     val listOfZnode = curatorManager.getListChildren(curatorClient, "/")
-    for(x<- listOfZnode){
+    for (x <- listOfZnode) {
       logger.info(x)
     }
 
     val data = curatorManager.readData(curatorClient, "/test")
     logger.info(data)
 
-    val check=curatorManager.checkExists(curatorClient,"/test")
-    logger.info(check)
+    val check1 = curatorManager.checkExists(curatorClient, "/test")
+    logger.info(check1)
 
-    curatorManager.delete(curatorClient,"/test")
+    val check2 = curatorManager.checkExists(curatorClient, "/test1")
+    logger.info(check2)
+
+    curatorManager.delete(curatorClient, "/test")
     curatorClient.close()
   }
 
