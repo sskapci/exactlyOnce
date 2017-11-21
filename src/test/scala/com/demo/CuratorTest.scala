@@ -32,6 +32,9 @@ class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
     val data = curatorManager.readData(curatorClient, "/test")
     logger.info(data)
 
+    val check=curatorManager.checkExists(curatorClient,"/test")
+    logger.info(check)
+
     curatorManager.delete(curatorClient,"/test")
     curatorClient.close()
   }

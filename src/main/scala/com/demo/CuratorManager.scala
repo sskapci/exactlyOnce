@@ -6,7 +6,7 @@ import org.apache.log4j.Logger
 
 import scala.collection.JavaConversions._
 
-class CuratorManager extends serializable{
+class CuratorManager extends serializable {
   private val logger = Logger.getLogger(getClass)
 
   def createSimple(connectionString: String): CuratorFramework = {
@@ -39,8 +39,11 @@ class CuratorManager extends serializable{
     client.delete.forPath(path)
   }
 
-  def checkExists(client: CuratorFramework, path: String):Boolean={
-
+  def checkExists(client: CuratorFramework, path: String): Boolean = {
+    if (client.checkExists().forPath(path).equals(null))
+      false
+    else
+      true
   }
 
 }
