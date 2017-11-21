@@ -3,15 +3,16 @@ package com.demo
 import org.apache.curator.framework.CuratorFrameworkFactory
 import org.apache.curator.retry.ExponentialBackoffRetry
 import org.apache.curator.framework.CuratorFramework
-import org.apache.curator.framework.api.transaction.CuratorTransactionResult
 
 import scala.collection.JavaConversions._
-import java.util
 
 import org.apache.log4j.Logger
 
 class CuratorManager {
   private val logger = Logger.getLogger(getClass)
+
+  import org.apache.curator.framework.CuratorFramework
+  import org.apache.curator.framework.CuratorFrameworkFactory
 
   def createSimple(connectionString: String): CuratorFramework = {
     // these are reasonable arguments for the ExponentialBackoffRetry. The first
@@ -23,17 +24,36 @@ class CuratorManager {
     CuratorFrameworkFactory.newClient(connectionString, retryPolicy)
   }
 
-  @throws[Exception]
-  def transactionTest(client: CuratorFramework): util.Collection[CuratorTransactionResult] = { // this example shows how to use ZooKeeper's transactions
-    val createOp = client.transactionOp.create.forPath("/test/path1", "some data".getBytes)
-    val setDataOp = client.transactionOp.setData.forPath("/test/path2", "other data".getBytes)
-    val deleteOp1 = client.transactionOp.delete.forPath("/test/path1")
-    val deleteOp2 = client.transactionOp.delete.forPath("/test/path2")
-    val results = client.transaction.forOperations(createOp, setDataOp, deleteOp1,deleteOp2)
-    for (result <- results) {
-      logger.info(result.getForPath + " - " + result.getType)
+  def create(client: CuratorFramework, path: String, payload: String): Unit = {
+    client.create.forPath(path, payload.getBytes("UTF-8"))
+  }
+
+  def setData(client: CuratorFramework, path: String, payload: String): Unit = {
+    client.setData.forPath(path, payload.getBytes("UTF-8"))
+  }
+
+  def readData(client: CuratorFramework, path: String): String = {
+    new String(client.getData.forPath(path), "UTF-8")
+  }
+
+  def getListChildren(client: CuratorFramework, path: String): List[String] = {
+    client.getChildren.forPath(path).toList
+  }
+
+  def delete(cs: String, path: String): Unit = {
+    CuratorFrameworkSingleton.getInstance(cs).delete.forPath(path)
+  }
+
+  object CuratorFrameworkSingleton {
+    @transient private var instance: CuratorFramework = _
+
+    def getInstance(connectionString: String): CuratorFramework = {
+      if (instance == null) {
+        val retryPolicy = new ExponentialBackoffRetry(1000, 3)
+        instance = CuratorFrameworkFactory.newClient(connectionString, retryPolicy)
+      }
+      instance
     }
-    results
   }
 
 }

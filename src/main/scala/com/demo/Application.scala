@@ -4,7 +4,8 @@ import kafka.common.TopicAndPartition
 import kafka.message.MessageAndMetadata
 import kafka.serializer.StringDecoder
 import org.apache.log4j.Logger
-import org.apache.spark.SparkConf
+import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.sql.SQLContext
 import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
@@ -17,11 +18,10 @@ object Application {
   case class KafkaMessageAndMetadata[K, V](key: K, value: V, topic: String, partition: Int, offset: Long) extends Serializable
 
   def main(args: Array[String]) {
-    val conf = new SparkConf(true)
-    conf.setAppName(getClass().getSimpleName().dropRight(1))
+    val configuration = new SparkConf(true)
+    configuration.setAppName(getClass().getSimpleName().dropRight(1))
 
-
-    val ssc = new StreamingContext(conf, Seconds(2))
+    val ssc = new StreamingContext(configuration, Seconds(2))
 
     //TODO Change to parameter
     val topicsList: List[String] = List[String]("test1", "test2", "test3")
@@ -76,6 +76,15 @@ object Application {
     ssc.awaitTermination()
 
     sys.exit(0)
+  }
+
+  object SQLContextSingleton {
+    @transient private var instance: SQLContext = _
+
+    def getInstance(sparkContext: SparkContext): SQLContext = {
+      if (instance == null) instance = new SQLContext(sparkContext)
+      instance
+    }
   }
 
 }
