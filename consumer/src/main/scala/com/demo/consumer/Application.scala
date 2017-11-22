@@ -6,7 +6,7 @@ import kafka.serializer.StringDecoder
 import org.apache.log4j.Logger
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.sql.SQLContext
-import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils}
+import org.apache.spark.streaming.kafka.{HasOffsetRanges, KafkaUtils, OffsetRange}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import scopt.OptionParser
 
@@ -30,11 +30,11 @@ object Application {
     opt[String]('t', "topics")
       .action((f, c) => c.copy(topics = f))
       .valueName("<topics>")
-      .text("Topics List")
+      .text("Topics List separated with comma")
     opt[String]('z', "zookeeper")
-      .action((f, c) => c.copy(topics = f))
-      .valueName("<topics>")
-      .text("Zookeeper Topic")
+      .action((f, c) => c.copy(zookeeper = f))
+      .valueName("<zookeeper>")
+      .text("Zookeeper connection")
   }
 
   //TODO add partitions too
@@ -46,7 +46,7 @@ object Application {
       val configuration = new SparkConf(true)
       configuration.setAppName(getClass.getSimpleName)
 
-      val ssc = new StreamingContext(configuration, Seconds(2))
+      val ssc = new StreamingContext(configuration, Seconds(5))
 
       val topicsList: List[String] = confForArgs.topics.split(",").toList
       checkAndPrepareZnodes(confForArgs.zookeeper, topicsList)
@@ -83,8 +83,8 @@ object Application {
 
             val itemsArray = rdd.collect()
 
-            //TODO save offsets in here
 
+            saveOffsets(confForArgs.zookeeper,offsetRanges)
           } catch {
             case e: Exception =>
               logger.error("**************Error in Consumer")
@@ -101,7 +101,7 @@ object Application {
     }
 
       //this is for checking and creating zNodes for the topics
-      //partitons hasn't implemented yet
+      //partitions hasn't implemented yet
       def checkAndPrepareZnodes(connectionString: String, topics: List[String]): Unit = {
         val cm = new CuratorManager
         val cl = cm.createSimple(connectionString)
@@ -114,7 +114,7 @@ object Application {
         cl.close()
       }
 
-      //partitons hasn't implemented yet
+      //partitions hasn't implemented yet
       def readTopicValues(connectionString: String, topics: List[String]): Map[TopicAndPartition, Long] = {
         var topicsMutableMap: mutable.Map[TopicAndPartition, Long] = mutable.Map()
 
@@ -123,11 +123,23 @@ object Application {
         cl.start()
         topics.foreach(f => {
           val data = cm.readData(cl, "/" + f)
-          topicsMutableMap += TopicAndPartition("test1", 0) -> data.asInstanceOf[Long]
+          topicsMutableMap += TopicAndPartition(f, 0) -> data.toLong
         })
         cl.close()
 
         topicsMutableMap.toMap
+      }
+
+      //partitions hasn't implemented yet
+      def saveOffsets(connectionString: String, offsetArray: Array[OffsetRange]): Unit = {
+        val cm = new CuratorManager
+        val cl = cm.createSimple(connectionString)
+        cl.start()
+
+        offsetArray.foreach(x => {
+          cm.setData(cl, "/" + x.topic, x.untilOffset.toString)
+        })
+        cl.close()
       }
   }
 
