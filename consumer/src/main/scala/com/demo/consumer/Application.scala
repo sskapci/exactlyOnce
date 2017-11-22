@@ -81,10 +81,12 @@ object Application {
         if (!rdd.isEmpty()) {
           try {
 
-            val itemsArray = rdd.collect()
+            rdd.foreach(x => {
+              logger.info("------Result TOPIC: " + x.topic + "  PARTITION: " + x.partition + "  OFFSET: " + x.offset + "  KEY: " + x.key + "  VALUE:" + x.value)
+            })
 
 
-            saveOffsets(confForArgs.zookeeper,offsetRanges)
+            saveOffsets(confForArgs.zookeeper, offsetRanges)
           } catch {
             case e: Exception =>
               logger.error("**************Error in Consumer")
