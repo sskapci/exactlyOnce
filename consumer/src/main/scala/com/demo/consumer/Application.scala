@@ -30,7 +30,7 @@ object Application {
     opt[String]('t', "topics")
       .action((f, c) => c.copy(topics = f))
       .valueName("<topics>")
-      .text("Topics List separated with comma")
+      .text("Topics List separated with comma and number of partitions with semicolon ex: test:2")
     opt[String]('z', "zookeeper")
       .action((f, c) => c.copy(zookeeper = f))
       .valueName("<zookeeper>")
@@ -49,9 +49,10 @@ object Application {
       val ssc = new StreamingContext(configuration, Seconds(5))
 
       val topicsList: List[String] = confForArgs.topics.split(",").toList
-      checkAndPrepareZnodes(confForArgs.zookeeper, topicsList)
+      val topicsWithPartitions = topicsList.map(x => (x.split(":")(0), x.split(":")(1)))
+      checkAndPrepareZnodes(confForArgs.zookeeper, topicsWithPartitions)
 
-      val fromOffsets: Map[TopicAndPartition, Long] = readTopicValues(confForArgs.zookeeper, topicsList)
+      val fromOffsets: Map[TopicAndPartition, Long] = readTopicValues(confForArgs.zookeeper, topicsWithPartitions.map(_._1))
 
       val kafkaSettingsMap = Map[String, String]("bootstrap.servers" -> confForArgs.broker,
         "key.serializer" -> "org.apache.kafka.common.serialization.StringSerializer",
@@ -103,20 +104,18 @@ object Application {
     }
 
       //this is for checking and creating zNodes for the topics
-      //partitions hasn't implemented yet
-      def checkAndPrepareZnodes(connectionString: String, topics: List[String]): Unit = {
+      def checkAndPrepareZnodes(connectionString: String, topics: List[(String, String)]): Unit = {
         val cm = new CuratorManager
         val cl = cm.createSimple(connectionString)
         cl.start()
         topics.foreach(f => {
-          if (!cm.checkExists(cl, "/" + f)) {
-            cm.create(cl, "/" + f, "0")
+          if (!cm.checkExists(cl, "/" + f._1 + "/" + f._2)) {
+            cm.create(cl, "/" + f._1 + "/" + f._2, "0")
           }
         })
         cl.close()
       }
 
-      //partitions hasn't implemented yet
       def readTopicValues(connectionString: String, topics: List[String]): Map[TopicAndPartition, Long] = {
         var topicsMutableMap: mutable.Map[TopicAndPartition, Long] = mutable.Map()
 
@@ -124,22 +123,30 @@ object Application {
         val cl = cm.createSimple(connectionString)
         cl.start()
         topics.foreach(f => {
-          val data = cm.readData(cl, "/" + f)
-          topicsMutableMap += TopicAndPartition(f, 0) -> data.toLong
+
+          var counterPartitions = 0
+
+          val dataPaths = cm.getListChildren(cl, "/" + f)
+          dataPaths.foreach(v => {
+            val data = cm.readData(cl, v)
+            topicsMutableMap += TopicAndPartition(f, counterPartitions) -> data.toLong
+            counterPartitions += 1
+          })
+
         })
         cl.close()
 
         topicsMutableMap.toMap
       }
 
-      //partitions hasn't implemented yet
+
       def saveOffsets(connectionString: String, offsetArray: Array[OffsetRange]): Unit = {
         val cm = new CuratorManager
         val cl = cm.createSimple(connectionString)
         cl.start()
 
         offsetArray.foreach(x => {
-          cm.setData(cl, "/" + x.topic, x.untilOffset.toString)
+          cm.setData(cl, "/" + x.topic + "/" + x.partition, x.untilOffset.toString)
         })
         cl.close()
       }
