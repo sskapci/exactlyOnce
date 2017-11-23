@@ -1,8 +1,17 @@
 package com.demo.consumer
 
+import com.demo.consumer.Application.TopicAndPartitionParser
+import kafka.common.TopicAndPartition
 import org.apache.log4j.Logger
 import org.scalatest.{BeforeAndAfter, FunSpec, Matchers}
 import org.apache.curator.test.TestingServer
+import org.apache.spark.streaming.kafka.OffsetRange
+
+import scala.collection.mutable.ArrayBuffer
+
+/**
+  * @author Safak Kapci
+  */
 
 class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
 
@@ -41,5 +50,33 @@ class CuratorTest extends FunSpec with BeforeAndAfter with Matchers {
     curatorManager.delete(curatorClient, "/test")
     curatorClient.close()
   }
+
+  it("should Prepare Znodes ") {
+    val topicsList: List[String] = "testTopic1:5,testTopic2:3".split(",").toList
+    val topicsWithPartitions = topicsList.map(x => TopicAndPartitionParser(x.split(":")(0), x.split(":")(1)))
+    CuratorWrapper.checkAndPrepareZnodes(zkServer.getConnectString, topicsWithPartitions)
+
+    val fromOffsets: Map[TopicAndPartition, Long] = CuratorWrapper.readTopicValues(zkServer.getConnectString, topicsWithPartitions.map(_.topic))
+
+    for (x <- fromOffsets) {
+      logger.info(x._1.topic + " " + x._1.partition + " " + x._2)
+    }
+
+    val offsetRanges: ArrayBuffer[OffsetRange] = new ArrayBuffer[OffsetRange]()
+    offsetRanges.append(OffsetRange.create("testTopic1", 0, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic1", 1, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic1", 2, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic1", 3, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic1", 4, 0, 100))
+
+    offsetRanges.append(OffsetRange.create("testTopic2", 0, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic2", 1, 0, 100))
+    offsetRanges.append(OffsetRange.create("testTopic2", 2, 0, 100))
+
+
+    CuratorWrapper.saveOffsets(zkServer.getConnectString, offsetRanges.toArray)
+
+  }
+
 
 }

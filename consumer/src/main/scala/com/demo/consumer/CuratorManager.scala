@@ -6,6 +6,10 @@ import org.apache.log4j.Logger
 
 import scala.collection.JavaConversions._
 
+/**
+  * @author sskapci
+  */
+
 class CuratorManager {
 
   private val logger = Logger.getLogger(getClass)

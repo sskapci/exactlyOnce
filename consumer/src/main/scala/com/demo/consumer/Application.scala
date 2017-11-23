@@ -12,13 +12,19 @@ import scopt.OptionParser
 
 import scala.collection.mutable
 
+/**
+  * @author sskapci
+  */
+
 object Application {
 
   private val logger = Logger.getLogger(getClass)
 
   case class KafkaMessageAndMetadata[K, V](key: K, value: V, topic: String, partition: Int, offset: Long) extends Serializable
 
-  case class StartArgs(broker: String = null, topics: String = null, zookeeper: String = null)
+  case class TopicAndPartitionParser(topic: String, partition: String) extends Serializable
+
+  case class StartArgs(broker: String = null, topics: String = null, zookeeper: String = null) extends Serializable
 
   val parser: OptionParser[StartArgs] = new scopt.OptionParser[StartArgs]("startArgs") {
     head("exactly once approach", "1.0")
@@ -37,7 +43,6 @@ object Application {
       .text("Zookeeper connection")
   }
 
-  //TODO add partitions too
   def main(args: Array[String]): Unit = parser.parse(args, StartArgs()) match {
     case None => parser.failure("Failed parsing arguments")
 
@@ -49,10 +54,10 @@ object Application {
       val ssc = new StreamingContext(configuration, Seconds(5))
 
       val topicsList: List[String] = confForArgs.topics.split(",").toList
-      val topicsWithPartitions = topicsList.map(x => (x.split(":")(0), x.split(":")(1)))
-      checkAndPrepareZnodes(confForArgs.zookeeper, topicsWithPartitions)
+      val topicsWithPartitions = topicsList.map(x => TopicAndPartitionParser(x.split(":")(0), x.split(":")(1)))
+      CuratorWrapper.checkAndPrepareZnodes(confForArgs.zookeeper, topicsWithPartitions)
 
-      val fromOffsets: Map[TopicAndPartition, Long] = readTopicValues(confForArgs.zookeeper, topicsWithPartitions.map(_._1))
+      val fromOffsets: Map[TopicAndPartition, Long] = CuratorWrapper.readTopicValues(confForArgs.zookeeper, topicsWithPartitions.map(_.topic))
 
       val kafkaSettingsMap = Map[String, String]("bootstrap.servers" -> confForArgs.broker,
         "key.serializer" -> "org.apache.kafka.common.serialization.StringSerializer",
@@ -86,8 +91,8 @@ object Application {
               logger.info("------Result TOPIC: " + x.topic + "  PARTITION: " + x.partition + "  OFFSET: " + x.offset + "  KEY: " + x.key + "  VALUE:" + x.value)
             })
 
-
-            saveOffsets(confForArgs.zookeeper, offsetRanges)
+            
+            CuratorWrapper.saveOffsets(confForArgs.zookeeper, offsetRanges)
           } catch {
             case e: Exception =>
               logger.error("**************Error in Consumer")
@@ -102,54 +107,6 @@ object Application {
 
       sys.exit(0)
     }
-
-      //this is for checking and creating zNodes for the topics
-      def checkAndPrepareZnodes(connectionString: String, topics: List[(String, String)]): Unit = {
-        val cm = new CuratorManager
-        val cl = cm.createSimple(connectionString)
-        cl.start()
-        topics.foreach(f => {
-          if (!cm.checkExists(cl, "/" + f._1 + "/" + f._2)) {
-            cm.create(cl, "/" + f._1 + "/" + f._2, "0")
-          }
-        })
-        cl.close()
-      }
-
-      def readTopicValues(connectionString: String, topics: List[String]): Map[TopicAndPartition, Long] = {
-        var topicsMutableMap: mutable.Map[TopicAndPartition, Long] = mutable.Map()
-
-        val cm = new CuratorManager
-        val cl = cm.createSimple(connectionString)
-        cl.start()
-        topics.foreach(f => {
-
-          var counterPartitions = 0
-
-          val dataPaths = cm.getListChildren(cl, "/" + f)
-          dataPaths.foreach(v => {
-            val data = cm.readData(cl, v)
-            topicsMutableMap += TopicAndPartition(f, counterPartitions) -> data.toLong
-            counterPartitions += 1
-          })
-
-        })
-        cl.close()
-
-        topicsMutableMap.toMap
-      }
-
-
-      def saveOffsets(connectionString: String, offsetArray: Array[OffsetRange]): Unit = {
-        val cm = new CuratorManager
-        val cl = cm.createSimple(connectionString)
-        cl.start()
-
-        offsetArray.foreach(x => {
-          cm.setData(cl, "/" + x.topic + "/" + x.partition, x.untilOffset.toString)
-        })
-        cl.close()
-      }
   }
 
   object SQLContextSingleton {

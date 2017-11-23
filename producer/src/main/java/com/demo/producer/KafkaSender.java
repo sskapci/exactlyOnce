@@ -6,6 +6,10 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.util.Properties;
 
+/**
+ * @author sskapci
+ */
+
 public class KafkaSender {
 
     public static void SendMessage(String server,String topic,String data) {
