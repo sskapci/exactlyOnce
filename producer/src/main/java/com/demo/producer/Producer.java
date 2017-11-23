@@ -1,6 +1,8 @@
 package com.demo.producer;
 
-import java.util.Random;
+/**
+ * @author sskapci
+ */
 
 public class Producer {
 
