@@ -91,7 +91,7 @@ object Application {
               logger.info("------Result TOPIC: " + x.topic + "  PARTITION: " + x.partition + "  OFFSET: " + x.offset + "  KEY: " + x.key + "  VALUE:" + x.value)
             })
 
-
+            
             CuratorWrapper.saveOffsets(confForArgs.zookeeper, offsetRanges)
           } catch {
             case e: Exception =>
